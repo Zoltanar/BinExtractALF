@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "BinExtractALF": {
+      "commandName": "Project",
+      "commandLineArgs": "BinExtractALF SYS5INI.BIN"
+    }
+  }
+}

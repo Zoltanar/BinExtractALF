@@ -1,0 +1,7 @@
+To do:
+Complete porting S4 append file extraction
+Add LzssCpp.dll to build process.
+Finish figuring out S5 structure
+Minimise usage of unsafe context
+Extract methods used in common, currently in AGF2BMP2AGF to new project
+Add unit tests using results from exs4alf to check expected values.
