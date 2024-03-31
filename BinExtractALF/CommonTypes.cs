@@ -5,7 +5,7 @@ namespace BinExtractALF
     {
         string Signature { get; }
     }
-    
+
     interface ISectorHeader
     {
         ulong OriginalLength { get; }
@@ -17,17 +17,15 @@ namespace BinExtractALF
         string GetFilename();
     }
 
-    public struct SafeTOCARCENTRY
+    public interface IFileEntry
     {
-        public string FileName { get; set; }
-        public SafeTOCARCENTRY(ITOCARCENTRY data)
-        {
-            FileName = data.GetFilename();
-        }
-
-        public override string ToString() => FileName;
+        public string FileName { get; }
+        public uint ArchiveIndex { get; }
+        public uint FileIndex { get; }
+        public uint Offset { get; }
+        public uint Length { get; }
     }
-
+    
     public struct ArchiveInfo
     {
         public string? FileName;

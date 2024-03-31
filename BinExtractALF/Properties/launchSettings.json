@@ -3,6 +3,10 @@
     "BinExtractALF": {
       "commandName": "Project",
       "commandLineArgs": "BinExtractALF \"..\\..\\..\\..\\..\\..\\BinExtractALF Test\\APPEND01.AAI\" \"..\\..\\..\\..\\..\\..\\BinExtractALF Test Out\\\\\""
+    },
+    "BinExtractALF SYS5": {
+      "commandName": "Project",
+      "commandLineArgs": "BinExtractALF \"..\\..\\..\\..\\..\\..\\BinExtractALF Test\\SYS5INI.BIN\" \"..\\..\\..\\..\\..\\..\\BinExtractALF Test Out\\Hyakusen\\\\\""
     }
   }
 }

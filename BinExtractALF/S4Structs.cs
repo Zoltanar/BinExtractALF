@@ -1,35 +1,41 @@
 ﻿using System.Runtime.InteropServices;
 using System.Text;
+using AGF2BMP2AGF;
+
 // ReSharper disable InconsistentNaming
 
 namespace BinExtractALF
 {
+    //most of this ported from
 
-    [StructLayout(LayoutKind.Sequential)]
-    public unsafe struct S4HDR : IHeader
+    // exs4alf.cpp, v1.1 2009/04/26
+    // coded by asmodean
+
+    // contact: 
+    //   web:   http://asmodean.reverse.net
+    //   email: asmodean [at] hush.com
+    //   irc:   asmodean on efnet (irc.efnet.net)
+
+
+    public struct S4HDR : IHeader, IFromBytes
     {
-        public fixed byte signature_title[240]; // "S4IC413 <title>", "S4AC422 <title>" //todo not unsigned?
-        public fixed byte unknown[60];
+        public int Size => 240 + 60;
 
-        public string GetSignature()
+        /// <example>S4IC413 [title]</example>
+        /// <example>S4AC422 [title]</example>
+        private string _signature;
+        public byte[] Unknown;
+
+
+        public void GetFromBytes(byte[] bytes, int offset)
         {
-            string s;
-            fixed (byte* ptr = signature_title)
-            {
-                byte[] bytes = new byte[240];
-                int index = 0;
-                for (byte* counter = ptr; *counter != 0; counter++)
-                {
-                    bytes[index++] = *counter;
-                }
-                s = Encoding.UTF8.GetString(bytes, 0, 240).TrimEnd('\0');
-            }
-            return s;
+            _signature = Encoding.UTF8.GetString(bytes, offset, 240).TrimEnd('\0');
+            Unknown = bytes.Skip(offset+240).Take(60).ToArray();
         }
 
-        public string Signature => GetSignature();
+        public string Signature => _signature;
 
-        public override string ToString() => GetSignature();
+        public override string ToString() => _signature;
     }
     
     public struct S4SECTHDR : ISectorHeader
@@ -43,7 +49,7 @@ namespace BinExtractALF
     }
 
     [StructLayout(LayoutKind.Sequential)]
-    struct S4TOCARCHDR
+    public struct S4TOCARCHDR
     {
         public uint entry_count;
     }
@@ -75,7 +81,7 @@ namespace BinExtractALF
     }
     
     [StructLayout(LayoutKind.Sequential)]
-    public unsafe struct S4TOCFILENTRY
+    public unsafe struct S4FileEntry : IFileEntry
     {
         public fixed byte filename[64]; //todo not unsigned?
         public uint archive_index;
@@ -98,6 +104,12 @@ namespace BinExtractALF
             }
             return s;
         }
+
+        public string FileName => GetFilename();
+        public uint ArchiveIndex => archive_index;
+        public uint FileIndex => file_index;
+        public uint Offset => offset;
+        public uint Length => length;
     };
     
 

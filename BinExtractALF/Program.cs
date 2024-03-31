@@ -14,17 +14,6 @@ var success = Run(args);
 if (success) Print($"Completed in {timer.Elapsed:g}");
 else PrintError($"Completed with errors in {timer.Elapsed:g}");
 return;
-// exs4alf.cpp, v1.1 2009/04/26
-// coded by asmodean
-
-// contact: 
-//   web:   http://asmodean.reverse.net
-//   email: asmodean [at] hush.com
-//   irc:   asmodean on efnet (irc.efnet.net)
-
-// This tool extracts S4IC413 (sys4ini.bin + *.ALF) and S4AC422 (*.AAI + *.ALF)
-// archives.
-
 
 bool Run(string[] args)
 {
@@ -46,12 +35,12 @@ bool Run(string[] args)
     IHeader hdr;
     if (isS5)
     {
-        Algorithm.ReadToStructure(fd, out S5HDR s5Hdrhdr, Marshal.SizeOf<S5HDR>());
-        hdr = s5Hdrhdr;
+        Algorithm.ReadToStructure(fd, out S5HDR s5Hdr, GetSize<S5HDR>());
+        hdr = s5Hdr;
     }
     else
     {
-        Algorithm.ReadToStructure(fd, out S4HDR s4Hdr, Marshal.SizeOf<S4HDR>());
+        Algorithm.ReadToStructure(fd, out S4HDR s4Hdr, GetSize<S4HDR>());
         hdr = s4Hdr;
     }
     //different size header for S4 append archives
@@ -68,20 +57,23 @@ bool Run(string[] args)
     }
     fd.Dispose();
     S4TOCARCHDR archivesHeader = Operation.ByteArrayToStructure<S4TOCARCHDR>(data);
-    var offset = Marshal.SizeOf<S4TOCARCHDR>();
-    var sizeOfArcEntries = (isS5 ? Marshal.SizeOf<S5TOCARCENTRY>() : Marshal.SizeOf<S4TOCARCENTRY>()) * (int)archivesHeader.entry_count;
+    var offset = GetSize<S4TOCARCHDR>();
+    var sizeOfArcEntries = (isS5 ? GetSize<S5TOCARCENTRY>() : GetSize<S4TOCARCENTRY>()) * (int)archivesHeader.entry_count;
     string[] archiveEntries = (isS5 ?
-            GetS5EntryNames(data, offset, sizeOfArcEntries) :
-        Operation.ByteArrayToStructureArray<S4TOCARCENTRY>(data, offset, sizeOfArcEntries).Cast<ITOCARCENTRY>()
-        .Select(i => new SafeTOCARCENTRY(i).FileName).ToArray());
-    offset += sizeOfArcEntries;
+        Operation.ByteArrayToStructureArray<S5TOCARCENTRY>(data, offset, sizeOfArcEntries).Cast<ITOCARCENTRY>() :
+        Operation.ByteArrayToStructureArray<S4TOCARCENTRY>(data, offset, sizeOfArcEntries).Cast<ITOCARCENTRY>())
+        .Select(i => i.GetFilename()).ToArray();
+    if (isS5) offset = 1060 - 544;
+    else offset += sizeOfArcEntries;
+    PrintWarning($"Found {archivesHeader.entry_count} archives...");
     S4TOCARCHDR filesHeader = Operation.ByteArrayToStructure<S4TOCARCHDR>(data, offset);
-    offset += Marshal.SizeOf<S4TOCARCHDR>();
-    var sizeOfFileEntries = (int)filesHeader.entry_count * Marshal.SizeOf<S4TOCFILENTRY>();
-    S4TOCFILENTRY[] fileEntries = Operation.ByteArrayToStructureArray<S4TOCFILENTRY>(data, offset, sizeOfFileEntries);
-
+    offset += GetSize<S4TOCARCHDR>();
+    var sizeOfFileEntries = (int)filesHeader.entry_count * (isS5 ? GetSize<S5FileEntry>() : GetSize<S4FileEntry>());
+    IFileEntry[] fileEntries = (isS5 ? Operation.ByteArrayToStructureArray<S5FileEntry>(data, offset, sizeOfFileEntries).Cast<IFileEntry>() 
+        : Operation.ByteArrayToStructureArray<S4FileEntry>(data, offset, sizeOfFileEntries).Cast<IFileEntry>()
+        ).ToArray();
+    PrintWarning($"Found {filesHeader.entry_count} files within archives...");
     var archiveItems = new ArchiveInfo[archivesHeader.entry_count];
-
     var inputDirectory = Directory.GetParent(args[1])!;
     for (uint i = 0; i < archivesHeader.entry_count; i++)
     {
@@ -101,18 +93,18 @@ bool Run(string[] args)
 
     for (uint i = 0; i < filesHeader.entry_count; i++)
     {
-        ArchiveInfo archive = archiveItems[fileEntries[i].archive_index];
+        ArchiveInfo archive = archiveItems[fileEntries[i].ArchiveIndex];
 
-        if (archive.FileName == null || fileEntries[i].length == 0)
+        if (archive.FileName == null || fileEntries[i].Length == 0)
         {
             continue;
         }
-        uint len = fileEntries[i].length;
+        uint len = fileEntries[i].Length;
         var buff = new byte[len];
         var file = Algorithm.OpenFileOrDie(archive.FileName, FileMode.Open);
-        file.Seek(fileEntries[i].offset, SeekOrigin.Begin);
+        file.Seek(fileEntries[i].Offset, SeekOrigin.Begin);
         file.Read(buff, 0, (int)len);
-        var outputFile = Algorithm.OpenFileOrDie(archive.OutputDirectory + fileEntries[i].GetFilename(), FileMode.OpenOrCreate);
+        var outputFile = Algorithm.OpenFileOrDie(archive.OutputDirectory + fileEntries[i].FileName, FileMode.OpenOrCreate);
         outputFile.Write(buff);
         outputFile.Dispose();
         file.Dispose();
@@ -138,7 +130,7 @@ static void Print(string text)
 
 static byte[] ReadSector<T>(Stream stream) where T : struct, ISectorHeader
 {
-    Algorithm.ReadToStructure(stream, out T hdr, Marshal.SizeOf<T>());
+    Algorithm.ReadToStructure(stream, out T hdr, GetSize<T>());
     var len = hdr.Length;
     var buff = new byte[len];
     stream.Read(buff, 0, (int)len);
@@ -154,46 +146,9 @@ bool TryS5(FileStream fileStream)
     return text.StartsWith("S5");
 }
 
-
-
-static string[] GetS5EntryNames(byte[] bytes, int offset, int length)
+static int GetSize<T>() where T : struct
 {
-    //
-    int traveled1 = 0;
-    var list1 = new List<SafeS5TOCARCENTRY>();
-    int size1 = 144;
-    var offset1 = 1060 - 540;
-    while (offset1 + traveled1 + size1 < bytes.Length)
-    {
-
-        var fileName = new SafeS5TOCARCENTRY(bytes, offset1 + traveled1);
-        list1.Add(fileName);
-        traveled1 += size1;
-    }
-
-    foreach (var entry in list1)
-    {
-        uint len = entry.FileSize;
-        var buff = new byte[len];
-        var file = Algorithm.OpenFileOrDie("Data.ALF", FileMode.Open);
-        file.Seek(entry.Location, SeekOrigin.Begin);
-        file.Read(buff, 0, (int)len);
-
-        var outputFile = Algorithm.OpenFileOrDie("Hyakusen-Data/" + entry.FileName, FileMode.OpenOrCreate);
-        outputFile.Write(buff);
-        outputFile.Dispose();
-        file.Dispose();
-    }
-    throw new NotSupportedException("WIP S5 mode, ends here.");
-    //
-    int traveled = 0;
-    var list = new List<string>();
-    int size = Marshal.SizeOf(typeof(S5TOCARCENTRY));
-    while (traveled < length)
-    {
-        var fileName = Encoding.Unicode.GetString(bytes, offset + traveled, size).TrimEnd('\0');
-        list.Add(fileName);
-        traveled += size;
-    }
-    return list.ToArray();
+    var item = new T();
+    if (item is IFromBytes fromBytes) return fromBytes.Size;
+    return Marshal.SizeOf<T>();
 }

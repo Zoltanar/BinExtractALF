@@ -1,36 +1,25 @@
-﻿using System.Runtime.InteropServices;
-using System.Text;
+﻿using System.Text;
+using AGF2BMP2AGF;
+
 // ReSharper disable InconsistentNaming
 
 namespace BinExtractALF
 {
-    [StructLayout(LayoutKind.Sequential)]
-    public unsafe struct S5HDR : IHeader
+    public struct S5HDR : IHeader, IFromBytes
     {
-        /// <example>S4IC413 [title]</example>
-        /// <example>S4AC422 [title]</example>
-        public fixed byte signature_title[480]; 
-        public fixed byte unknown[60];
+        public int Size => 480 + 60;
+        private string _signature;
+        public byte[] Unknown;
 
-        public string GetSignature()
+        public void GetFromBytes(byte[] bytes, int offset)
         {
-            string s;
-            fixed (byte* ptr = signature_title)
-            {
-                byte[] bytes = new byte[480];
-                int index = 0;
-                for (byte* counter = ptr; *counter != 0; counter++)
-                {
-                    bytes[index++] = *counter;
-                }
-                s = Encoding.Unicode.GetString(bytes, 0, 480).TrimEnd('\0');
-            }
-            return s;
+            _signature = Encoding.Unicode.GetString(bytes, offset, 480).TrimEnd('\0');
+            Unknown = bytes.Skip(offset+480).Take(60).ToArray();
         }
 
-        public string Signature => GetSignature();
+        public string Signature => _signature;
 
-        public override string ToString() => GetSignature();
+        public override string ToString() => Signature;
     }
 
     public struct S5SECTHDR : ISectorHeader
@@ -41,61 +30,59 @@ namespace BinExtractALF
         public ulong Length => length;
     }
 
-    [StructLayout(LayoutKind.Sequential)]
-    public unsafe struct S5TOCARCENTRY : ITOCARCENTRY
+    public struct S5TOCARCENTRY : ITOCARCENTRY, IFromBytes
     {
-        // There's a bunch of junk following the name which I assume is
-        // uninitialized memory...
-        public fixed byte filename[256]; //todo not unsigned?
+        public string FileName { get; set; }
+        public string GetFilename() => FileName;
 
-        public string GetFilename()
+        public override string ToString() => FileName;
+        public int Size => 256;
+        public void GetFromBytes(byte[] data, int offset)
         {
-            string s;
-            fixed (byte* ptr = filename)
-            {
-                byte[] bytes = new byte[256];
-                int index = 0;
-                for (byte* counter = ptr; *counter != 0; counter++)
-                {
-                    bytes[index++] = *counter;
-                }
-                s = Encoding.Unicode.GetString(bytes, 0, 256).TrimEnd('\0');
-            }
-            return s;
+            FileName = Encoding.Unicode.GetString(data, offset, 256).TrimEnd('\0');
+            var firstNullCharacter = FileName.IndexOf('\0');
+            FileName = FileName.Substring(0, firstNullCharacter);
         }
-
-        public override string ToString() => GetFilename();
     }
 
     //144 total?
-    public struct SafeS5TOCARCENTRY
+    public struct S5FileEntry: IFileEntry, IFromBytes
     {
         /// <remarks>132 bytes</remarks>
         public string FileName { get; set; }
 
         /// <remarks>4 bytes after file name //maybe archive index (which archive)</remarks>
-        public uint Bytes1 { get; set; } //
+        public uint ArchiveIndex { get; set; }
 
+        /// <remarks>4 bytes after archive index (index of file within archive?)</remarks>
+        public uint FileIndex { get; set; }
+        
         /// <summary>
         /// Location in archive (bytes offset)
         /// </summary>
         /// <remarks>4 Bytes after Bytes1</remarks>
-        public uint Location { get; set; }
+        public uint Offset { get; set; }
 
         /// <summary>
         /// Size of file in bytes
         /// </summary>
         /// <remarks>4 bytes after location</remarks>
-        public uint FileSize { get; set; }
+        public uint Length { get; set; }
 
-        public SafeS5TOCARCENTRY(byte[] buffer, int offset)
+        /// <summary>
+        /// Size of this object in bytes
+        /// </summary>
+        public int Size => 144;
+
+        public void GetFromBytes(byte[] data, int offset)
         {
-            FileName = Encoding.Unicode.GetString(buffer, offset, 132).TrimEnd('\0');
-            Bytes1 = BitConverter.ToUInt32(buffer, offset + 132);
-            Location = BitConverter.ToUInt32(buffer, offset + 136);
-            FileSize = BitConverter.ToUInt32(buffer, offset + 140);
+            FileName = Encoding.Unicode.GetString(data, offset, 128).TrimEnd('\0');
+            ArchiveIndex = BitConverter.ToUInt32(data, offset + 128);
+            FileIndex = BitConverter.ToUInt32(data, offset + 132);
+            Offset = BitConverter.ToUInt32(data, offset + 136);
+            Length = BitConverter.ToUInt32(data, offset + 140);
         }
 
-        public override string ToString() => $"{FileName}@{Bytes1}:{Location}, size: {FileSize}";
+        public override string ToString() => $"{FileName}@{ArchiveIndex}:{Offset}, size: {Length}";
     }
 }
