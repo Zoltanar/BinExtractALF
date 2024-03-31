@@ -1,16 +1,15 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 using System.Text;
-using System.Threading.Tasks;
+// ReSharper disable InconsistentNaming
 
 namespace BinExtractALF
 {
     [StructLayout(LayoutKind.Sequential)]
     public unsafe struct S5HDR : IHeader
     {
-        public fixed byte signature_title[480]; // "S4IC413 <title>", "S4AC422 <title>" //todo not unsigned?
+        /// <example>S4IC413 [title]</example>
+        /// <example>S4AC422 [title]</example>
+        public fixed byte signature_title[480]; 
         public fixed byte unknown[60];
 
         public string GetSignature()
@@ -32,6 +31,14 @@ namespace BinExtractALF
         public string Signature => GetSignature();
 
         public override string ToString() => GetSignature();
+    }
+
+    public struct S5SECTHDR : ISectorHeader
+    {
+        public uint original_length;
+        public uint length;
+        public ulong OriginalLength => original_length;
+        public ulong Length => length;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -63,19 +70,32 @@ namespace BinExtractALF
     //144 total?
     public struct SafeS5TOCARCENTRY
     {
-        public string FileName { get; set; } //unknown number of bytes 132?
-        public uint Bytes1 { get; set; } //4 bytes after file name //maybe archive index (which archive)
-        public uint Bytes2 { get; set; } //4 bytes after Bytes2 //maybe location in archive 
-        public uint FileSize { get; set; } //4 bytes after Bytes2
+        /// <remarks>132 bytes</remarks>
+        public string FileName { get; set; }
+
+        /// <remarks>4 bytes after file name //maybe archive index (which archive)</remarks>
+        public uint Bytes1 { get; set; } //
+
+        /// <summary>
+        /// Location in archive (bytes offset)
+        /// </summary>
+        /// <remarks>4 Bytes after Bytes1</remarks>
+        public uint Location { get; set; }
+
+        /// <summary>
+        /// Size of file in bytes
+        /// </summary>
+        /// <remarks>4 bytes after location</remarks>
+        public uint FileSize { get; set; }
 
         public SafeS5TOCARCENTRY(byte[] buffer, int offset)
         {
             FileName = Encoding.Unicode.GetString(buffer, offset, 132).TrimEnd('\0');
             Bytes1 = BitConverter.ToUInt32(buffer, offset + 132);
-            Bytes2 = BitConverter.ToUInt32(buffer, offset + 136);
+            Location = BitConverter.ToUInt32(buffer, offset + 136);
             FileSize = BitConverter.ToUInt32(buffer, offset + 140);
         }
 
-        public override string ToString() => $"{FileName}@{Bytes1}:{Bytes2}, size: {FileSize}";
+        public override string ToString() => $"{FileName}@{Bytes1}:{Location}, size: {FileSize}";
     }
 }

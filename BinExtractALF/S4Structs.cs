@@ -1,6 +1,6 @@
-﻿using System.Reflection.PortableExecutable;
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 using System.Text;
+// ReSharper disable InconsistentNaming
 
 namespace BinExtractALF
 {
@@ -31,24 +31,7 @@ namespace BinExtractALF
 
         public override string ToString() => GetSignature();
     }
-
-
-
-    interface ISectorHeader
-    {
-        ulong OriginalLength { get; }
-        ulong Length { get; }
-    }
-
-
-
-    public struct S5SECTHDR : ISectorHeader
-    {
-        public uint original_length;
-        public uint length;
-        public ulong OriginalLength => original_length;
-        public ulong Length => length;
-    }
+    
     public struct S4SECTHDR : ISectorHeader
     {
         public uint original_length;
@@ -65,10 +48,6 @@ namespace BinExtractALF
         public uint entry_count;
     }
 
-    public interface ITOCARCENTRY
-    {
-        string GetFilename();
-    }
     [StructLayout(LayoutKind.Sequential)]
     public unsafe struct S4TOCARCENTRY : ITOCARCENTRY
     {
@@ -95,17 +74,6 @@ namespace BinExtractALF
         public override string ToString() => GetFilename();
     }
     
-    public struct SafeTOCARCENTRY
-    {
-        public string FileName { get; set; }
-        public SafeTOCARCENTRY(ITOCARCENTRY data)
-        {
-            FileName = data.GetFilename();
-        }
-
-        public override string ToString() => FileName;
-    }
-
     [StructLayout(LayoutKind.Sequential)]
     public unsafe struct S4TOCFILENTRY
     {
@@ -131,13 +99,6 @@ namespace BinExtractALF
             return s;
         }
     };
-
-
-    [StructLayout(LayoutKind.Sequential)]
-    public struct arc_info_t
-    {
-        public string? fd;
-        public string dir;
-    };
+    
 
 }

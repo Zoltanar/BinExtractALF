@@ -4,3 +4,7 @@ Finish figuring out S5 structure
 Minimise usage of unsafe context
 Extract methods used in common, currently in AGF2BMP2AGF to new project
 Add unit tests using results from exs4alf to check expected values.
+Open Archive Files once only (not once per file to extract)
+
+Features to add:
+Let user specify file name/pattern to extract
