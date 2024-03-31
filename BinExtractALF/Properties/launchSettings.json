@@ -2,7 +2,7 @@
   "profiles": {
     "BinExtractALF": {
       "commandName": "Project",
-      "commandLineArgs": "BinExtractALF SYS5INI.BIN"
+      "commandLineArgs": "BinExtractALF \"..\\..\\..\\..\\..\\..\\BinExtractALF Test\\APPEND01.AAI\" \"..\\..\\..\\..\\..\\..\\BinExtractALF Test Out\\\\\""
     }
   }
 }

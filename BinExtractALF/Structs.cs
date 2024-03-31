@@ -1,11 +1,12 @@
-﻿using System.Runtime.InteropServices;
+﻿using System.Reflection.PortableExecutable;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace BinExtractALF
 {
 
     [StructLayout(LayoutKind.Sequential)]
-    public unsafe struct S4HDR
+    public unsafe struct S4HDR : IHeader
     {
         public fixed byte signature_title[240]; // "S4IC413 <title>", "S4AC422 <title>" //todo not unsigned?
         public fixed byte unknown[60];
@@ -21,10 +22,12 @@ namespace BinExtractALF
                 {
                     bytes[index++] = *counter;
                 }
-                s = Encoding.Unicode.GetString(bytes, 0, 240).TrimEnd('\0');
+                s = Encoding.UTF8.GetString(bytes, 0, 240).TrimEnd('\0');
             }
             return s;
         }
+
+        public string Signature => GetSignature();
 
         public override string ToString() => GetSignature();
     }

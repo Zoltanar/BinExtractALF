@@ -1,12 +1,18 @@
 ﻿// See https://aka.ms/new-console-template for more information
 
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
 using AGF2BMP2AGF;
 using BinExtractALF;
 
-Console.WriteLine($"Hello, World! {args}");
-Run(args);
+PrintWarning("BinExtractAlf v0.01, version 4 code based on exs4alf v1.01 by asmodean");
+PrintWarning($"Processing: {string.Join(Environment.NewLine, args)}");
+var timer = Stopwatch.StartNew();
+var success = Run(args);
+if (success) Print($"Completed in {timer.Elapsed:g}");
+else PrintError($"Completed with errors in {timer.Elapsed:g}");
+return;
 // exs4alf.cpp, v1.1 2009/04/26
 // coded by asmodean
 
@@ -19,27 +25,36 @@ Run(args);
 // archives.
 
 
-unsafe int Run(string[] args)
+unsafe bool Run(string[] args)
 {
     var argc = args.Length;
-    if (argc != 2)
+    if (argc < 2)
     {
         PrintError("BinExtractAlf v0.01, version 4 code based on exs4alf v1.01 by asmodean");
-        PrintError($"usage: {args[0]} <sys4ini.bin>\n");
-        return -1;
+        PrintError($"usage: {args[0]} <sys4ini.bin> [<outputFolder>]\n");
+        return false;
+    }
+
+    if (!File.Exists(args[1]))
+    {
+        PrintError($"File {new FileInfo(args[1]).FullName} not found.");
+        return false;
     }
     var fd = Algorithm.OpenFileOrDie(args[1], FileMode.Open);
     bool isS5 = TryS5(fd);
-    if (isS5) Algorithm.ReadToStructure(fd, out S5HDR hdr, Marshal.SizeOf<S5HDR>());
-    else Algorithm.ReadToStructure(fd, out S4HDR hdr, Marshal.SizeOf<S4HDR>());
-
-    /*todo addon archives
-    // Hack for addon archives
-    if (!memcmp(hdr.signature_title, "S4AC", 4))
+    IHeader hdr = null;
+    if (isS5)
     {
-        lseek(fd, 268, SEEK_SET);
+        Algorithm.ReadToStructure(fd, out S5HDR s5Hdrhdr, Marshal.SizeOf<S5HDR>());
+        hdr = s5Hdrhdr;
     }
-    */
+    else
+    {
+        Algorithm.ReadToStructure(fd, out S4HDR s4Hdr, Marshal.SizeOf<S4HDR>());
+        hdr = s4Hdr;
+    }
+    //different size header for S4 append archives
+    if (hdr.Signature.StartsWith("S4AC")) fd.Seek(268, SeekOrigin.Begin);
     byte[] toc_buff = null;
     if (!isS5)
     {
@@ -51,12 +66,6 @@ unsafe int Run(string[] args)
         fd.Read(toc_buff, 0, toc_buff.Length);
     }
     fd.Dispose();
-    /*
-    if (isS5)
-    {
-        PrintError("Unsupported S5 format.");
-        return 0;
-    }*/
     S4TOCARCHDR archdr = Operation.ByteArrayToStructure<S4TOCARCHDR>(toc_buff);
     var offset = Marshal.SizeOf<S4TOCARCHDR>();
     var sizeOfArcEntries = (isS5 ? Marshal.SizeOf<S5TOCARCENTRY>() : Marshal.SizeOf<S4TOCARCENTRY>()) * (int)archdr.entry_count;
@@ -72,12 +81,14 @@ unsafe int Run(string[] args)
 
     arc_info_t[] arc_info = new arc_info_t[archdr.entry_count];
 
+    var inputDirectory = Directory.GetParent(args[1]);
     for (uint i = 0; i < archdr.entry_count; i++)
     {
-        arc_info[i].fd = arcentries[i];
+        arc_info[i].fd =  Path.Combine(inputDirectory.FullName, arcentries[i]);
         if (File.Exists(arc_info[i].fd))
         {
-            arc_info[i].dir = Path.GetFileNameWithoutExtension(arcentries[i]) + '/'; ;
+            arc_info[i].dir = Path.GetFileNameWithoutExtension(arcentries[i]) + '/';
+            if(args.Length >= 3) arc_info[i].dir = Path.Combine(args[2], arc_info[i].dir);
             Directory.CreateDirectory(arc_info[i].dir);
         }
         else
@@ -106,12 +117,22 @@ unsafe int Run(string[] args)
         file.Dispose();
 
     }
-    return 0;
+    return true;
 }
 
 static void PrintError(string text)
 {
     AGF2BMP2AGF.Program.Print(AGF2BMP2AGF.Program.ErrorColor, text.TrimEnd('\r', '\n'));
+}
+
+static void PrintWarning(string text)
+{
+    AGF2BMP2AGF.Program.Print(AGF2BMP2AGF.Program.WarningColor, text.TrimEnd('\r', '\n'));
+}
+
+static void Print(string text)
+{
+    AGF2BMP2AGF.Program.Print(AGF2BMP2AGF.Program.SuccessColor, text.TrimEnd('\r', '\n'));
 }
 
 static byte[] ReadSector<T>(Stream stream) where T : struct, ISectorHeader

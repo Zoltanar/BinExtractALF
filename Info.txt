@@ -1,5 +1,4 @@
 To do:
-Complete porting S4 append file extraction
 Add LzssCpp.dll to build process.
 Finish figuring out S5 structure
 Minimise usage of unsafe context

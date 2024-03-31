@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 namespace BinExtractALF
 {
     [StructLayout(LayoutKind.Sequential)]
-    public unsafe struct S5HDR
+    public unsafe struct S5HDR : IHeader
     {
         public fixed byte signature_title[480]; // "S4IC413 <title>", "S4AC422 <title>" //todo not unsigned?
         public fixed byte unknown[60];
@@ -28,6 +28,8 @@ namespace BinExtractALF
             }
             return s;
         }
+
+        public string Signature => GetSignature();
 
         public override string ToString() => GetSignature();
     }
