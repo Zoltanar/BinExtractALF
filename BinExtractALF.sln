@@ -16,6 +16,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BinExtractALFTest", "BinExtractALFTest\BinExtractALFTest.csproj", "{EC239A27-8C86-4381-A81E-61B5FED7FD41}"
 EndProject
+Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "EushullyExtractionUtils", "..\EushullyExtractionUtils\EushullyExtractionUtils.shproj", "{3131640B-AD73-4D30-96C8-F4149AD93F1A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -80,5 +82,10 @@ Global
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {D25EA316-7D9B-4E4A-BE1C-3059DF2B33E4}
+	EndGlobalSection
+	GlobalSection(SharedMSBuildProjectFiles) = preSolution
+		..\EushullyExtractionUtils\EushullyExtractionUtils.projitems*{3131640b-ad73-4d30-96c8-f4149ad93f1a}*SharedItemsImports = 13
+		..\EushullyExtractionUtils\EushullyExtractionUtils.projitems*{4daac19b-adb1-4906-b4ff-980ae25c0152}*SharedItemsImports = 4
+		..\EushullyExtractionUtils\EushullyExtractionUtils.projitems*{fd98e4ee-9f70-4e6e-aeeb-fd90db970fe1}*SharedItemsImports = 5
 	EndGlobalSection
 EndGlobal

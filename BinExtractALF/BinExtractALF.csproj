@@ -8,16 +8,16 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Platforms>AnyCPU;x64</Platforms>
 	<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+	<AssemblyVersion>0.8</AssemblyVersion>
+	<FileVersion>0.8</FileVersion>
   </PropertyGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\..\Agf2Bmp2Agf\AGF2BMP2AGF\AGF2BMP2AGF.csproj" />
-  </ItemGroup>
 
   <ItemGroup>
     <None Update="LzssCpp.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
+
+  <Import Project="..\..\EushullyExtractionUtils\EushullyExtractionUtils.projitems" Label="Shared" />
 
 </Project>

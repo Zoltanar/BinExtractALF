@@ -1,6 +1,7 @@
-﻿using AGF2BMP2AGF;
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 using System.Text;
+using EushullyExtractionUtils;
+
 // ReSharper disable MustUseReturnValue
 
 namespace BinExtractALF;
@@ -11,7 +12,7 @@ public static class Processing
     {
         if (args.Length < 1)
         {
-            PrintError($@"usage: {nameof(BinExtractALF)} <inputFile> [<outputFolder>]
+            ConsoleUtils.PrintError($@"usage: {nameof(BinExtractALF)} <inputFile> [<outputFolder>]
 inputFile: the header/directory file path,
 outputFolder: optional output directory where files will be extracted to. 
 
@@ -27,19 +28,19 @@ The archived data (.ALF) files must be present in the same folder as the header/
         var inputFile = args[0];
         if (!File.Exists(inputFile))
         {
-            PrintError($"File {new FileInfo(inputFile).FullName} not found.");
+            ConsoleUtils.PrintError($"File {new FileInfo(inputFile).FullName} not found.");
             return false;
         }
-        PrintWarning($"Processing, input file: {new FileInfo(inputFile).FullName}");
+        ConsoleUtils.PrintWarning($"Processing, input file: {new FileInfo(inputFile).FullName}");
         var outputDirectory = args.Length > 1 ? args[1] : null;
-        PrintWarning($"Processing, output directory: {outputDirectory ?? "(not specified)"}");
-        var fd = Algorithm.OpenFileOrDie(inputFile, FileMode.Open);
-        return ProcessFile(inputFile, outputDirectory, fd);
+        ConsoleUtils.PrintWarning($"Processing, output directory: {outputDirectory ?? "(not specified)"}");
+        var fileStream = OpenFile(inputFile, FileMode.Open);
+        return ProcessFile(inputFile, outputDirectory, fileStream);
     }
 
-    public static bool ProcessFile(string inputFile, string? outputDirectory, FileStream fd)
+    public static bool ProcessFile(string inputFile, string? outputDirectory, FileStream fileStream)
     {
-        var archivesHeader = GetFileInformation(fd, out var archiveEntries, out var filesHeader, out var fileEntries);
+        var archivesHeader = GetFileInformation(fileStream, out var archiveEntries, out var filesHeader, out var fileEntries);
         var archiveItems = new ArchiveInfo[archivesHeader.entry_count];
         var inputDirectory = Directory.GetParent(inputFile)!;
         for (uint i = 0; i < archivesHeader.entry_count; i++)
@@ -53,7 +54,7 @@ The archived data (.ALF) files must be present in the same folder as the header/
             }
             else
             {
-                PrintError($"{archiveEntries[i]}: could not open (skipped!)\n");
+                ConsoleUtils.PrintError($"{archiveEntries[i]}: could not open (skipped!)\n");
                 archiveItems[i].FileName = null;
             }
         }
@@ -65,10 +66,10 @@ The archived data (.ALF) files must be present in the same folder as the header/
             if (archive.FileName == null || fileEntries[i].Length == 0) continue;
             uint len = fileEntries[i].Length;
             var buff = new byte[len];
-            var file = Algorithm.OpenFileOrDie(archive.FileName, FileMode.Open);
+            var file = OpenFile(archive.FileName, FileMode.Open);
             file.Seek(fileEntries[i].Offset, SeekOrigin.Begin);
             file.Read(buff, 0, (int)len);
-            var outputFile = Algorithm.OpenFileOrDie(archive.OutputDirectory + fileEntries[i].FileName, FileMode.OpenOrCreate);
+            var outputFile = OpenFile(archive.OutputDirectory + fileEntries[i].FileName, FileMode.OpenOrCreate);
             outputFile.Write(buff);
             outputFile.Dispose();
             file.Dispose();
@@ -103,14 +104,14 @@ The archived data (.ALF) files must be present in the same folder as the header/
             .Select(i => i.GetFilename()).ToArray();
         if (isS5) offset = 1060 - 544;
         else offset += sizeOfArcEntries;
-        PrintWarning($"Found {archivesHeader.entry_count} archives...");
+        ConsoleUtils.PrintWarning($"Found {archivesHeader.entry_count} archives...");
         filesHeader = Operation.ByteArrayToStructure<S4TOCARCHDR>(data, offset);
         offset += GetSize<S4TOCARCHDR>();
         var sizeOfFileEntries = (int)filesHeader.entry_count * (isS5 ? GetSize<S5FileEntry>() : GetSize<S4FileEntry>());
         fileEntries = (isS5 ? Operation.ByteArrayToStructureArray<S5FileEntry>(data, offset, sizeOfFileEntries).Cast<IFileEntry>()
                 : Operation.ByteArrayToStructureArray<S4FileEntry>(data, offset, sizeOfFileEntries).Cast<IFileEntry>()
             ).ToArray();
-        PrintWarning($"Found {filesHeader.entry_count} files within archives...");
+        ConsoleUtils.PrintWarning($"Found {filesHeader.entry_count} files within archives...");
         return archivesHeader;
     }
 
@@ -119,36 +120,20 @@ The archived data (.ALF) files must be present in the same folder as the header/
         IHeader hdr;
         if (isS5)
         {
-            Algorithm.ReadToStructure(fd, out S5HDR s5Hdr, GetSize<S5HDR>());
+            Operation.ReadToStructure(fd, out S5HDR s5Hdr, GetSize<S5HDR>());
             hdr = s5Hdr;
         }
         else
         {
-            Algorithm.ReadToStructure(fd, out S4HDR s4Hdr, GetSize<S4HDR>());
+            Operation.ReadToStructure(fd, out S4HDR s4Hdr, GetSize<S4HDR>());
             hdr = s4Hdr;
         }
 
         return hdr;
     }
-
-    public static void PrintError(string text)
-    {
-        AGF2BMP2AGF.Program.Print(AGF2BMP2AGF.Program.ErrorColor, text.TrimEnd('\r', '\n'));
-    }
-
-    public static void PrintWarning(string text)
-    {
-        AGF2BMP2AGF.Program.Print(AGF2BMP2AGF.Program.WarningColor, text.TrimEnd('\r', '\n'));
-    }
-
-    public static void Print(string text)
-    {
-        AGF2BMP2AGF.Program.Print(AGF2BMP2AGF.Program.SuccessColor, text.TrimEnd('\r', '\n'));
-    }
-
     private static byte[] ReadSector<T>(Stream stream) where T : struct, ISectorHeader
     {
-        Algorithm.ReadToStructure(stream, out T hdr, GetSize<T>());
+        Operation.ReadToStructure(stream, out T hdr, GetSize<T>());
         var len = hdr.Length;
         var buff = new byte[len];
         stream.Read(buff, 0, (int)len);
@@ -169,5 +154,12 @@ The archived data (.ALF) files must be present in the same folder as the header/
         var item = new T();
         if (item is IFromBytes fromBytes) return fromBytes.Size;
         return Marshal.SizeOf<T>();
+    }
+
+    public static FileStream OpenFile(string filename, FileMode fileMode)
+    {
+        Directory.CreateDirectory(Directory.GetParent(filename)!.FullName);
+        var fileStream = File.Open(filename, fileMode);
+        return fileStream;
     }
 }

@@ -1,6 +1,6 @@
 ﻿using System.Runtime.InteropServices;
 using System.Text;
-using AGF2BMP2AGF;
+using EushullyExtractionUtils;
 
 // ReSharper disable InconsistentNaming
 
