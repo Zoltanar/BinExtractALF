@@ -40,10 +40,10 @@ The archived data (.ALF) files must be present in the same folder as the header/
 
     public static bool ProcessFile(string inputFile, string? outputDirectory, FileStream fileStream)
     {
-        var archivesHeader = GetFileInformation(fileStream, out var archiveEntries, out var filesHeader, out var fileEntries);
-        var archiveItems = new ArchiveInfo[archivesHeader.entry_count];
+        GetFileInformation(fileStream, out var archiveCount, out var archiveEntries, out var fileCount, out var fileEntries);
+        var archiveItems = new ArchiveInfo[archiveCount];
         var inputDirectory = Directory.GetParent(inputFile)!;
-        for (uint i = 0; i < archivesHeader.entry_count; i++)
+        for (uint i = 0; i < archiveCount; i++)
         {
             archiveItems[i].FileName = Path.Combine(inputDirectory.FullName, archiveEntries[i]);
             if (File.Exists(archiveItems[i].FileName))
@@ -59,7 +59,7 @@ The archived data (.ALF) files must be present in the same folder as the header/
             }
         }
 
-        for (uint i = 0; i < filesHeader.entry_count; i++)
+        for (uint i = 0; i < fileCount; i++)
         {
             ArchiveInfo archive = archiveItems[fileEntries[i].ArchiveIndex];
 
@@ -77,42 +77,42 @@ The archived data (.ALF) files must be present in the same folder as the header/
         return true;
     }
 
-    public static S4TOCARCHDR GetFileInformation(Stream fd, out string[] archiveEntries, out S4TOCARCHDR filesHeader,
-        out IFileEntry[] fileEntries)
+    public static void GetFileInformation(Stream stream, 
+        out int archiveCount, out string[] archiveEntries, 
+        out int fileCount, out IFileEntry[] fileEntries)
     {
-        bool isS5 = TryS5(fd);
-        var hdr = GetHeader(fd, isS5);
+        bool isS5 = TryS5(stream);
+        var hdr = GetHeader(stream, isS5);
         //different size header for S4 append archives
-        if (hdr.Signature.StartsWith("S4AC")) fd.Seek(268, SeekOrigin.Begin);
+        if (hdr.Signature.StartsWith("S4AC")) stream.Seek(268, SeekOrigin.Begin);
         byte[] data;
         if (!isS5)
         {
-            data = isS5 ? ReadSector<S5SECTHDR>(fd) : ReadSector<S4SECTHDR>(fd);
+            data = isS5 ? ReadSector<S5SECTHDR>(stream) : ReadSector<S4SECTHDR>(stream);
         }
         else
         {
-            data = new byte[fd.Length - fd.Position];
-            fd.Read(data, 0, data.Length);
+            data = new byte[stream.Length - stream.Position];
+            stream.Read(data, 0, data.Length);
         }
-        fd.Dispose();
-        var archivesHeader = Operation.ByteArrayToStructure<S4TOCARCHDR>(data);
-        var offset = GetSize<S4TOCARCHDR>();
-        var sizeOfArcEntries = (isS5 ? GetSize<S5TOCARCENTRY>() : GetSize<S4TOCARCENTRY>()) * (int)archivesHeader.entry_count;
+        stream.Dispose();
+        archiveCount = (int)BitConverter.ToUInt32(data, 0);
+        var offset = 4;
+        var sizeOfArcEntries = (isS5 ? GetSize<S5TOCARCENTRY>() : GetSize<S4TOCARCENTRY>()) * archiveCount;
         archiveEntries = (isS5 ?
                 Operation.ByteArrayToStructureArray<S5TOCARCENTRY>(data, offset, sizeOfArcEntries).Cast<ITOCARCENTRY>() :
                 Operation.ByteArrayToStructureArray<S4TOCARCENTRY>(data, offset, sizeOfArcEntries).Cast<ITOCARCENTRY>())
             .Select(i => i.GetFilename()).ToArray();
-        if (isS5) offset = 1060 - 544;
-        else offset += sizeOfArcEntries;
-        ConsoleUtils.PrintWarning($"Found {archivesHeader.entry_count} archives...");
-        filesHeader = Operation.ByteArrayToStructure<S4TOCARCHDR>(data, offset);
-        offset += GetSize<S4TOCARCHDR>();
-        var sizeOfFileEntries = (int)filesHeader.entry_count * (isS5 ? GetSize<S5FileEntry>() : GetSize<S4FileEntry>());
+        offset += sizeOfArcEntries;
+        if (isS5) offset += 256;
+        ConsoleUtils.PrintWarning($"Found {archiveCount} archives...");
+        fileCount = (int)BitConverter.ToUInt32(data, offset);
+        offset += 4;
+        var sizeOfFileEntries = fileCount * (isS5 ? GetSize<S5FileEntry>() : GetSize<S4FileEntry>());
         fileEntries = (isS5 ? Operation.ByteArrayToStructureArray<S5FileEntry>(data, offset, sizeOfFileEntries).Cast<IFileEntry>()
                 : Operation.ByteArrayToStructureArray<S4FileEntry>(data, offset, sizeOfFileEntries).Cast<IFileEntry>()
             ).ToArray();
-        ConsoleUtils.PrintWarning($"Found {filesHeader.entry_count} files within archives...");
-        return archivesHeader;
+        ConsoleUtils.PrintWarning($"Found {fileCount} files within archives...");
     }
 
     private static IHeader GetHeader(Stream fd, bool isS5)

@@ -8,6 +8,7 @@ namespace BinExtractALFTest
     /// It does not attempt to extract.
     /// </summary>
     [TestClass]
+    // ReSharper disable once InconsistentNaming
     public class exs4alfTests
     {
         [TestMethod]
@@ -27,10 +28,10 @@ namespace BinExtractALFTest
         private void Test(string fileName, int expectedArchives, int expectedFileCount)
         {
             GetResources(fileName, out var fileStream, out var expectedFiles);
-            var archivesHeader = Processing.GetFileInformation(fileStream, out var archiveEntries, out var filesHeader, out var fileEntries);
-            Assert.AreEqual(expectedArchives, (int)archivesHeader.entry_count, $"Expected {expectedArchives} archives, got {archivesHeader.entry_count}");
+            Processing.GetFileInformation(fileStream, out var archiveCount, out var archiveEntries, out var fileCount, out var fileEntries);
+            Assert.AreEqual(expectedArchives, archiveCount, $"Expected {expectedArchives} archives, got {archiveCount}");
             Assert.AreEqual(expectedArchives, archiveEntries.Length, $"Expected {expectedArchives} archives, got {archiveEntries.Length}");
-            Assert.AreEqual(expectedFileCount, (int)filesHeader.entry_count, $"Expected {expectedFileCount} files, got {filesHeader.entry_count}");
+            Assert.AreEqual(expectedFileCount, fileCount, $"Expected {expectedFileCount} files, got {fileCount}");
             Assert.AreEqual(expectedFileCount, fileEntries.Length, $"Expected {expectedFileCount} files, got {fileEntries.Length}");
             var actualFiles = fileEntries.Select(e => $"{Path.GetFileNameWithoutExtension(archiveEntries[e.ArchiveIndex])}\\{e.FileName}").ToArray();
             CollectionAssert.AreEquivalent(expectedFiles, actualFiles,$"Actual files did not match expected files.");

@@ -6,7 +6,7 @@
     },
     "BinExtractALF SYS5": {
       "commandName": "Project",
-      "commandLineArgs": "BinExtractALF \"..\\..\\..\\..\\..\\..\\BinExtractALF Test\\SYS5INI.BIN\" \"..\\..\\..\\..\\..\\..\\BinExtractALF Test Out\\Hyakusen\\\\\""
+      "commandLineArgs": "BinExtractALF \"..\\..\\..\\..\\..\\BinExtractALF Test\\SYS5INI.BIN\" \"..\\..\\..\\..\\..\\BinExtractALF Test Out\\Hyakusen\\\\\""
     }
   }
 }

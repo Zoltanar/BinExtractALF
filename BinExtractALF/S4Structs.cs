@@ -38,78 +38,81 @@ namespace BinExtractALF
         public override string ToString() => _signature;
     }
     
-    public struct S4SECTHDR : ISectorHeader
+    public struct S4SECTHDR : ISectorHeader, IFromBytes
     {
-        public uint original_length;
-        // ReSharper disable once NotAccessedField.Global
-        public uint original_length2; // why?
-        public uint length;
-        public ulong OriginalLength  => original_length;
-        public ulong Length => length;
+        public int Size => 12;
+        public ulong OriginalLength { get; set; }
+        public ulong OriginalLength2 { get; set; }
+        public ulong Length { get; set; }
+
+        public void GetFromBytes(byte[] data, int offset)
+        {
+            OriginalLength = BitConverter.ToUInt32(data, offset);
+            OriginalLength2 = BitConverter.ToUInt32(data, offset + 4);
+            Length = BitConverter.ToUInt32(data, offset + 8);
+        }
     }
 
-    [StructLayout(LayoutKind.Sequential)]
-    public struct S4TOCARCHDR
-    {
-        public uint entry_count;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    public unsafe struct S4TOCARCENTRY : ITOCARCENTRY
+    public struct S4TOCARCENTRY : ITOCARCENTRY, IFromBytes
     {
         // There's a bunch of junk following the name which I assume is
         // uninitialized memory...
-        public fixed byte filename[256]; //todo not unsigned?
+        public string FileName { get; set; }
 
-        public string GetFilename()
+        public int Size => 256;
+
+        public void GetFromBytes(byte[] data, int offset)
         {
-            string s;
-            fixed (byte* ptr = filename)
-            {
-                byte[] bytes = new byte[256];
-                int index = 0;
-                for (byte* counter = ptr; *counter != 0; counter++)
-                {
-                    bytes[index++] = *counter;
-                }
-                s = Encoding.UTF8.GetString(bytes, 0, 256).TrimEnd('\0');
-            }
-            return s;
+            FileName = Encoding.UTF8.GetString(data, offset, Size).TrimEnd('\0');
+
+            var firstNullCharacter = FileName.IndexOf('\0');
+            FileName = FileName.Substring(0, firstNullCharacter);
+
         }
 
-        public override string ToString() => GetFilename();
+        public string GetFilename() => FileName;
+
+        public override string ToString() => FileName;
     }
     
-    [StructLayout(LayoutKind.Sequential)]
-    public unsafe struct S4FileEntry : IFileEntry
+    public struct S4FileEntry : IFileEntry, IFromBytes
     {
-        public fixed byte filename[64]; //todo not unsigned?
-        public uint archive_index;
-        public uint file_index; //within archive?
-        public uint offset;
-        public uint length;
+        /// <remarks>132 bytes</remarks>
+        public string FileName { get; set; }
 
-        public string GetFilename()
+        /// <remarks>4 bytes after file name //maybe archive index (which archive)</remarks>
+        public uint ArchiveIndex { get; set; }
+
+        /// <remarks>4 bytes after archive index (index of file within archive?)</remarks>
+        public uint FileIndex { get; set; }
+
+        /// <summary>
+        /// Location in archive (bytes offset)
+        /// </summary>
+        /// <remarks>4 Bytes after Bytes1</remarks>
+        public uint Offset { get; set; }
+
+        /// <summary>
+        /// Size of file in bytes
+        /// </summary>
+        /// <remarks>4 bytes after location</remarks>
+        public uint Length { get; set; }
+
+        /// <summary>
+        /// Size of this object in bytes
+        /// </summary>
+        public int Size => 80;
+
+        public void GetFromBytes(byte[] data, int offset)
         {
-            string s;
-            fixed (byte* ptr = filename)
-            {
-                byte[] bytes = new byte[64];
-                int index = 0;
-                for (byte* counter = ptr; *counter != 0; counter++)
-                {
-                    bytes[index++] = *counter;
-                }
-                s = Encoding.UTF8.GetString(bytes, 0, 64).TrimEnd('\0');
-            }
-            return s;
+            FileName = Encoding.UTF8.GetString(data, offset, 64).TrimEnd('\0');
+            ArchiveIndex = BitConverter.ToUInt32(data, offset + 64);
+            FileIndex = BitConverter.ToUInt32(data, offset + 68);
+            Offset = BitConverter.ToUInt32(data, offset + 72);
+            Length = BitConverter.ToUInt32(data, offset + 76);
         }
 
-        public string FileName => GetFilename();
-        public uint ArchiveIndex => archive_index;
-        public uint FileIndex => file_index;
-        public uint Offset => offset;
-        public uint Length => length;
+        public override string ToString() => $"{FileName}@{ArchiveIndex}:{Offset}, size: {Length}";
     };
     
 

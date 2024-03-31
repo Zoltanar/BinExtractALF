@@ -39,7 +39,7 @@ namespace BinExtractALF
         public int Size => 256;
         public void GetFromBytes(byte[] data, int offset)
         {
-            FileName = Encoding.Unicode.GetString(data, offset, 256).TrimEnd('\0');
+            FileName = Encoding.Unicode.GetString(data, offset, Size).TrimEnd('\0');
             var firstNullCharacter = FileName.IndexOf('\0');
             FileName = FileName.Substring(0, firstNullCharacter);
         }
