@@ -7,35 +7,48 @@ namespace BinExtractALF;
 
 public static class Processing
 {
-    public static bool Run(string[] args)
+    internal static bool Run(string[] args)
     {
-        var argc = args.Length;
-        if (argc < 2)
+        if (args.Length < 1)
         {
-            PrintError($"usage: {args[0]} <sys4ini.bin> [<outputFolder>]\n");
+            PrintError($@"usage: {nameof(BinExtractALF)} <inputFile> [<outputFolder>]
+inputFile: the header/directory file path,
+outputFolder: optional output directory where files will be extracted to. 
+
+Examples:
+BinExtractALF SYS4INI.BIN
+BinExtractALF APPEND01.AAI Output
+BinExtractALF SYS5INI.BIN ""..\Extractor Output""
+
+The archived data (.ALF) files must be present in the same folder as the header/directory (.INI or .AAI) file.");
             return false;
         }
-        if (!File.Exists(args[1]))
+
+        var inputFile = args[0];
+        if (!File.Exists(inputFile))
         {
-            PrintError($"File {new FileInfo(args[1]).FullName} not found.");
+            PrintError($"File {new FileInfo(inputFile).FullName} not found.");
             return false;
         }
-        var fd = Algorithm.OpenFileOrDie(args[1], FileMode.Open);
-        return ProcessFile(args, fd);
+        PrintWarning($"Processing, input file: {new FileInfo(inputFile).FullName}");
+        var outputDirectory = args.Length > 1 ? args[1] : null;
+        PrintWarning($"Processing, output directory: {outputDirectory ?? "(not specified)"}");
+        var fd = Algorithm.OpenFileOrDie(inputFile, FileMode.Open);
+        return ProcessFile(inputFile, outputDirectory, fd);
     }
 
-    public static bool ProcessFile(string[] args, FileStream fd)
+    public static bool ProcessFile(string inputFile, string? outputDirectory, FileStream fd)
     {
         var archivesHeader = GetFileInformation(fd, out var archiveEntries, out var filesHeader, out var fileEntries);
         var archiveItems = new ArchiveInfo[archivesHeader.entry_count];
-        var inputDirectory = Directory.GetParent(args[1])!;
+        var inputDirectory = Directory.GetParent(inputFile)!;
         for (uint i = 0; i < archivesHeader.entry_count; i++)
         {
             archiveItems[i].FileName = Path.Combine(inputDirectory.FullName, archiveEntries[i]);
             if (File.Exists(archiveItems[i].FileName))
             {
                 archiveItems[i].OutputDirectory = Path.GetFileNameWithoutExtension(archiveEntries[i]) + '/';
-                if (args.Length >= 3) archiveItems[i].OutputDirectory = Path.Combine(args[2], archiveItems[i].OutputDirectory);
+                if (outputDirectory != null) archiveItems[i].OutputDirectory = Path.Combine(outputDirectory, archiveItems[i].OutputDirectory);
                 Directory.CreateDirectory(archiveItems[i].OutputDirectory);
             }
             else

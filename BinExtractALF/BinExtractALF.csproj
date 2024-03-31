@@ -14,4 +14,10 @@
     <ProjectReference Include="..\..\Agf2Bmp2Agf\AGF2BMP2AGF\AGF2BMP2AGF.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="LzssCpp.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>
